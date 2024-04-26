@@ -1,0 +1,21 @@
+{
+    "ManifestFile": "D:\\EMC INFO PROJECT\\manifest1.csv",
+    "DestinationSite": "",
+    "DestinationCredentials": {
+        "UserName": null,
+        "Password": null
+    },
+    "DestinationListTitle": "Documents",
+    "MetaDataMapping": [
+        {
+            "SourceColumn": "file_name",
+            "DestinationColumn": "Title"
+        },
+        {
+            "SourceColumn": "file_name",
+            "DestinationColumn": "Title"
+        }
+    ],
+    "FolderHierarchy": true,
+    "FolderHierarchyFieldsSequence": ["insuredname", "doctype"]
+}
