@@ -1,21 +1,24 @@
 {
-    "ManifestFile": "D:\\EMC INFO PROJECT\\manifest1.csv",
+    "ManifestFile": "D:\\EMC INFO PROJECT\\SPO-ImportFileShareDocuments\\manifest.csv",
     "DestinationSite": "",
     "DestinationCredentials": {
         "UserName": null,
         "Password": null
     },
-    "DestinationListTitle": "Documents",
+    "DestinationLibraryTitle": "Documents",
     "MetaDataMapping": [
         {
             "SourceColumn": "file_name",
-            "DestinationColumn": "Title"
+            "DestinationColumn": "Title",
+            "Type": "Text"
         },
         {
-            "SourceColumn": "file_name",
-            "DestinationColumn": "Title"
+            "SourceColumn": "date",
+            "DestinationColumn": "Created",
+            "Type": "Date"
         }
     ],
-    "FolderHierarchy": true,
-    "FolderHierarchyFieldsSequence": ["insuredname", "doctype"]
+    "UploadFolderHierarchy": true,
+    "FolderHierarchyFieldsSequence": ["insuredname", "doctype"],
+    "FileName": "file_name_ext"
 }

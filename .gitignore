@@ -1,2 +1,6 @@
-# Config File
-/config.json
+# Ignore config file
+*.json
+*.csv
+
+# Ignore migration data directory
+#data/
