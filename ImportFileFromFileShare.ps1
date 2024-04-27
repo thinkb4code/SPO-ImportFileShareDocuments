@@ -35,7 +35,7 @@ foreach($csvRow in $manifestFile){
 
     # Read file from network drive as a stream
 
-$csvRow."$($migrationConfiguration.FileName)"
+    $csvRow."$($migrationConfiguration.FileName)"
 
     #Add-PnPFile -Folder $libraryPath -FileName $fileName -Stream $stream -Values $metaData -Publish -PublishComment "Automated upload using PnP PowerShell migration script."
     $fileCount++

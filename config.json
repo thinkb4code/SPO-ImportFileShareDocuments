@@ -1,6 +1,6 @@
 {
-    "ManifestFile": "D:\\EMC INFO PROJECT\\SPO-ImportFileShareDocuments\\manifest.csv",
-    "DestinationSite": "",
+    "ManifestFile": ".\\manifest.csv",
+    "DestinationSite": "https://m365ds604598.sharepoint.com/sites/",
     "DestinationCredentials": {
         "UserName": null,
         "Password": null
