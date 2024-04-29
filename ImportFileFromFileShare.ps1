@@ -8,6 +8,7 @@ $migrationConfiguration = Get-Content .\config.json -Raw | ConvertFrom-Json
 $libraryPath = $migrationConfiguration.DestinationLibraryTitle
 $manifestFile = Import-Csv $migrationConfiguration.ManifestFile
 $fileCount = 1
+$publishComment = "Automated upload using PnP PowerShell migration script."
 
 # Migration Log Output File
 $outputFile = ".\Logs\MigrationLog_$((Get-Date).ToString("yyyyMMddHHmmss")).csv"
@@ -17,7 +18,7 @@ if(!(Test-Path -Path ".\Logs")){
 }
 
 #CSV Header
-"Operation,Status,Source,Destination" | Out-File -FilePath $outputFile
+"Operation,Status,Source,Destination,Details" | Out-File -FilePath $outputFile
 
 # Check for site Add and Customize Pages permission enabled for site. 
 function Check-PnPAdminSiteForScriptPermissions {
@@ -27,8 +28,8 @@ function Check-PnPAdminSiteForScriptPermissions {
     }else {
         Write-Host "Connecting to SPO Admin Center via using config file credentials" -ForegroundColor Green
         $securePasswordAdmin = ConvertTo-SecureString -AsPlainText $migrationConfiguration.DestinationCredentials.Password -Force
-        $credAdmin = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $migrationConfiguration.DestinationCredentials.UserName $securePassword
-        Connect-PnPOnline $migrationConfiguration.TenantAdminUrl -Credentials $cred
+        $credAdmin = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $migrationConfiguration.DestinationCredentials.UserName $securePasswordAdmin
+        Connect-PnPOnline $migrationConfiguration.TenantAdminUrl -Credentials $credAdmin
     }
 
     $site = Get-PnPTenantSite $migrationConfiguration.DestinationSite -Detailed
@@ -58,6 +59,7 @@ foreach($csvRow in $manifestFile){
     $fileName = $csvRow."$($migrationConfiguration.FileNameMappingInCSV)"
     $networkFileLocation = $csvRow."$($migrationConfiguration.NetworkFileLocationMappingInCSV)"
     $metadata = $null
+    $metadataValidation = $null
     
     # Set up folder migration details
     if($migrationConfiguration.UploadFolderHierarchy) {
@@ -67,29 +69,54 @@ foreach($csvRow in $manifestFile){
 
     Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName"
 
-    # Read file from network drive as a stream
-    $fileContent = Get-Content -Path $networkFileLocation -AsByteStream -Raw
-    $filestream = [System.IO.MemoryStream]::new($fileContent)
-    
     # Setup metadata of uploaded file
     if($migrationConfiguration.MetaDataMapping.Count -gt 0){
         $metadata = @{}
+        $metadataValidation = New-Object System.Collections.ArrayList
 
         foreach($mapping in $migrationConfiguration.MetaDataMapping){
-            $metadata.Add($mapping.DestinationColumn, $csvRow."$($mapping.SourceColumn)")
+            $columnData = $csvRow."$($mapping.SourceColumn)"
+            # Date validation in mm/dd/yyyy format
+            switch -CaseSensitive ($mapping.Type) {
+                "Date" {
+                    if($columnData -match '\d{1,2}\/\d{1,2}\/(19\d{2}|20[0-2][0-4])'){
+                        $metadata.Add($mapping.DestinationColumn, $columnData)
+                    }else {
+                        $metadataValidation.Add("Invalid Date")
+                    }
+                    break
+                }
+                Default {
+                    $metadata.Add($mapping.DestinationColumn, $columnData)
+                }
+            }
         }
     }
 
+    # Read file from network drive as a stream
+    $fileContent = Get-Content -Path $networkFileLocation -AsByteStream -Raw
+    $filestream = [System.IO.MemoryStream]::new($fileContent)
+
     try {
-        $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -Values $metadata -PublishComment "Automated upload using PnP PowerShell migration script."
-        "Upload,Success,$SourceFile,$($newFileInSPO.ServerRelativeUrl)" | Out-File -FilePath $outputFile -Append
+        if($metadata.Count -gt 0){
+            $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -Values $metadata -PublishComment $publishComment
+        }else {
+            $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -PublishComment $publishComment
+        }
+        
+        "Upload,Success,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl)," | Out-File -FilePath $outputFile -Append
     }
     catch {
         <#Do this if a terminating exception happens#>
-        "Upload,Success,$SourceFile,#NA" | Out-File -FilePath $outputFile -Append
+        "Upload,Failed,$networkFileLocation,#NA,$($_.Exception.Message)" | Out-File -FilePath $outputFile -Append
+    } finally {
+        <#Do this after the try block regardless of whether an exception occurred or not#>
+        foreach($validation in $metadataValidation){
+            "Validation,Failed,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl),$validation" | Out-File -FilePath $outputFile -Append
+        }
     }
     
     $fileCount++
 }
 
-Disconnect-PnPOnline
+#Disconnect-PnPOnline
