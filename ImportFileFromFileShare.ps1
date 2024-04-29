@@ -17,10 +17,11 @@ if(!(Test-Path -Path ".\Logs")){
     New-Item -Path ".\Logs" -ItemType Directory | Out-Null
 }
 
-#CSV Header
+# Create CSV Log file with Header
 "Operation,Status,Source,Destination,Details" | Out-File -FilePath $outputFile
 
 # Check for site Add and Customize Pages permission enabled for site. 
+# This feature uses SPO Tenant Admin permission. 
 function Check-PnPAdminSiteForScriptPermissions {
     if([string]::IsNullOrEmpty($migrationConfiguration.DestinationCredentials.UserName)) {
         Write-Host "Connecting to SPO Admin Center via interactive method" -ForegroundColor Green
@@ -54,6 +55,7 @@ if([string]::IsNullOrEmpty($migrationConfiguration.DestinationCredentials.UserNa
 # Uncomment following line if Add-PnPFile result in Access Denied error
 # Check-PnPAdminSiteForScriptPermissions
 
+# For each file listed in Manifest CSV file, validate the file upload context and finally push to SPO 
 foreach($csvRow in $manifestFile){
     $uploadPath = "$libraryPath"
     $fileName = $csvRow."$($migrationConfiguration.FileNameMappingInCSV)"
@@ -61,13 +63,11 @@ foreach($csvRow in $manifestFile){
     $metadata = $null
     $metadataValidation = $null
     
-    # Set up folder migration details
+    # Check if folder hierarchy is enabled and set up folder hierarchy using configuration from Manifest file
     if($migrationConfiguration.UploadFolderHierarchy) {
         $folderPath = @($migrationConfiguration.FolderHierarchyFieldsSequence | % {$csvRow.$_}) -join "/"
         $uploadPath = "$($libraryPath)/$($folderPath)"
     }
-
-    Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName"
 
     # Setup metadata of uploaded file
     if($migrationConfiguration.MetaDataMapping.Count -gt 0){
@@ -97,6 +97,9 @@ foreach($csvRow in $manifestFile){
     $fileContent = Get-Content -Path $networkFileLocation -AsByteStream -Raw
     $filestream = [System.IO.MemoryStream]::new($fileContent)
 
+    Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName"
+    
+    # Upload File to SPO
     try {
         if($metadata.Count -gt 0){
             $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -Values $metadata -PublishComment $publishComment
