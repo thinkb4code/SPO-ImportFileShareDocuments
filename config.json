@@ -1,11 +1,12 @@
 {
     "ManifestFile": ".\\manifest.csv",
-    "DestinationSite": "https://m365ds604598.sharepoint.com/sites/",
+    "TenantAdminUrl": "https://m365ds604598-admin.sharepoint.com",
+    "DestinationSite": "https://m365ds604598.sharepoint.com/sites/EMCImportScript",
     "DestinationCredentials": {
         "UserName": null,
         "Password": null
     },
-    "DestinationLibraryTitle": "Documents",
+    "DestinationLibraryTitle": "Shared Documents",
     "MetaDataMapping": [
         {
             "SourceColumn": "file_name",
@@ -20,5 +21,6 @@
     ],
     "UploadFolderHierarchy": true,
     "FolderHierarchyFieldsSequence": ["insuredname", "doctype"],
-    "FileName": "file_name_ext"
+    "FileNameMappingInCSV": "file_name_ext",
+    "NetworkFileLocationMappingInCSV": "path"
 }
