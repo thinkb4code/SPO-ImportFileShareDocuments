@@ -22,7 +22,7 @@ if(!(Test-Path -Path ".\Logs")){
 
 # Check for site Add and Customize Pages permission enabled for site. 
 # This feature uses SPO Tenant Admin permission. 
-function Check-PnPAdminSiteForScriptPermissions {
+function Add-PnPSiteScriptPermissions {
     if([string]::IsNullOrEmpty($migrationConfiguration.DestinationCredentials.UserName)) {
         Write-Host "Connecting to SPO Admin Center via interactive method" -ForegroundColor Green
         Connect-PnPOnline $migrationConfiguration.TenantAdminUrl -Interactive
@@ -53,7 +53,7 @@ if([string]::IsNullOrEmpty($migrationConfiguration.DestinationCredentials.UserNa
 }
 
 # Uncomment following line if Add-PnPFile result in Access Denied error
-# Check-PnPAdminSiteForScriptPermissions
+# Add-PnPSiteScriptPermissions
 
 # For each file listed in Manifest CSV file, validate the file upload context and finally push to SPO 
 foreach($csvRow in $manifestFile){
@@ -65,7 +65,7 @@ foreach($csvRow in $manifestFile){
     
     # Check if folder hierarchy is enabled and set up folder hierarchy using configuration from Manifest file
     if($migrationConfiguration.UploadFolderHierarchy) {
-        $folderPath = @($migrationConfiguration.FolderHierarchyFieldsSequence | % {$csvRow.$_}) -join "/"
+        $folderPath = @($migrationConfiguration.FolderHierarchyFieldsSequence | ForEach-Object {$csvRow.$_}) -join "/"
         $uploadPath = "$($libraryPath)/$($folderPath)"
     }
 
@@ -82,9 +82,8 @@ foreach($csvRow in $manifestFile){
                     if($columnData -match '\d{1,2}\/\d{1,2}\/(19\d{2}|20[0-2][0-4])'){
                         $metadata.Add($mapping.DestinationColumn, $columnData)
                     }else {
-                        $metadataValidation.Add("Invalid Date")
+                        $metadataValidation.Add("Invalid Date") | Out-Null
                     }
-                    break
                 }
                 Default {
                     $metadata.Add($mapping.DestinationColumn, $columnData)
@@ -92,13 +91,13 @@ foreach($csvRow in $manifestFile){
             }
         }
     }
-
+    
     # Read file from network drive as a stream
     $fileContent = Get-Content -Path $networkFileLocation -AsByteStream -Raw
     $filestream = [System.IO.MemoryStream]::new($fileContent)
 
     Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName"
-    
+
     # Upload File to SPO
     try {
         if($metadata.Count -gt 0){
@@ -122,4 +121,4 @@ foreach($csvRow in $manifestFile){
     $fileCount++
 }
 
-#Disconnect-PnPOnline
+Disconnect-PnPOnline
