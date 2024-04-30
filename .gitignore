@@ -1,5 +1,5 @@
 # Ignore config file
-*.json
+#*.json
 *.csv
 
 # Ignore migration data directory

@@ -1,0 +1,204 @@
+{
+    "Tasks": [
+        {
+            "Name": "Actuary_Large_Accounts",
+            "SourceUnc": "\\\\Maggi\\SourceFolder",
+            "TargetUrl": "https://m365ds604598.sharepoint.com/sites/EMCImportScript",
+            "TargetCredentials": {
+                "UserName": null,
+                "Password": null
+            },
+            "TargetLibrary": "Shared Documents",
+            "ManifestFile": "\\\\Maggi\\SourceFolder\\ACTUARY_LG_ACCT_Concat.csv",
+            "ParentFolderHierarchyUpload": true,
+            "ParentFolder": ["insuredname", "year", "originalfolder"],
+            "FileNameInManifestCSV": "file_name",
+            "FieldMap": [
+                {
+                    "SourceField": "insuredname",
+                    "TargetField": "InsuredName",
+                    "TargetType": "Lookup",
+                    "Required": 1,
+                    "Format": ""
+                },
+                {
+                    "SourceField": "year",
+                    "TargetField": "Year",
+                    "TargetType": "Choice",
+                    "Required": 1,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "originalfolder",
+                    "TargetField": "OrigFileFolder",
+                    "TargetType": "Text",
+                    "Required": 0,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "docstatus",
+                    "TargetField": "DocStatus",
+                    "TargetType": "Choice",
+                    "Required": 0,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "doctype",
+                    "TargetField": "DocType",
+                    "TargetType": "Choice",
+                    "Required": 0,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "filemodtimestamp",
+                    "TargetField": "Modified",
+                    "TargetType": "DateTime",
+                    "Required": 1,
+                    "Transformation": "YYYY-MM-DDThh:mm:ssZ"
+                },
+                {
+                    "SourceField": "posting_date",
+                    "TargetField": "Created",
+                    "TargetType": "DateTime",
+                    "Required": 1,
+                    "Transformation": "YYYY-MM-DDThh:mm:ssZ"
+                },
+                {
+                    "SourceField": "indexedby",
+                    "TargetField": "Author",
+                    "TargetType": "User",
+                    "Required": 1,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "file_name",
+                    "TargetField": "Name",
+                    "TargetType": "Text",
+                    "Required": 1,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "originalfilename",
+                    "TargetField": "Title",
+                    "TargetType": "Text",
+                    "Required": 1,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "note_comment",
+                    "TargetField": "_Comments",
+                    "TargetType": "Text",
+                    "Required": 0,
+                    "Transformation": ""
+                }
+            ]
+        },
+        {
+            "Name": "Actuary_Revisions",
+            "SourceUnc": "\\\\Maggi\\SourceFolder",
+            "TargetUrl": "https://emcins.sharepoint.com/sites/actuary/rev",
+            "TargetCredentials": {
+                "UserName": null,
+                "Password": null
+            },
+            "TargetLibrary": "Shared Documents",
+            "ManifestFile": "\\\\Maggi\\SourceFolder\\ACTUARY_REV_Concat.csv",
+            "ParentFolderHierarchyUpload": true,
+            "ParentFolder": ["revisionid", "doctype", "originalfolder"],
+            "FileNameInManifestCSV": "file_name",
+            "FieldMap": [
+                {
+                    "SourceField": "revisionid",
+                    "TargetField": "RevisionID",
+                    "TargetType": "Text",
+                    "Required": 1,
+                    "Format": ""
+                },
+                {
+                    "SourceField": "doctype",
+                    "TargetField": "DocType",
+                    "TargetType": "Choice",
+                    "Required": 1,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "originalfolder",
+                    "TargetField": "SubFolder",
+                    "TargetType": "Text",
+                    "Required": 0,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "docstatus",
+                    "TargetField": "DocStatus",
+                    "TargetType": "Choice",
+                    "Required": 0,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "state",
+                    "TargetField": "State",
+                    "TargetType": "Choice",
+                    "Required": 0,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "lob",
+                    "TargetField": "LOB",
+                    "TargetType": "Choice",
+                    "Required": 0,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "effectivedate",
+                    "TargetField": "EffectiveDate",
+                    "TargetType": "DateTime",
+                    "Required": 0,
+                    "Transformation": "YYYY-MM-DDThh:mm:ssZ"
+                },
+                {
+                    "SourceField": "filemodtimestamp",
+                    "TargetField": "Modified",
+                    "TargetType": "DateTime",
+                    "Required": 1,
+                    "Transformation": "YYYY-MM-DDThh:mm:ssZ"
+                },
+                {
+                    "SourceField": "posting_date",
+                    "TargetField": "Created",
+                    "TargetType": "DateTime",
+                    "Required": 1,
+                    "Transformation": "YYYY-MM-DDThh:mm:ssZ"
+                },
+                {
+                    "SourceField": "indexedby",
+                    "TargetField": "Author",
+                    "TargetType": "User",
+                    "Required": 1,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "file_name",
+                    "TargetField": "Name",
+                    "TargetType": "Text",
+                    "Required": 1,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "originalfilename",
+                    "TargetField": "Title",
+                    "TargetType": "Text",
+                    "Required": 1,
+                    "Transformation": ""
+                },
+                {
+                    "SourceField": "note_comment",
+                    "TargetField": "_Comments",
+                    "TargetType": "Text",
+                    "Required": 0,
+                    "Transformation": ""
+                }
+            ]
+        }
+    ]
+}
