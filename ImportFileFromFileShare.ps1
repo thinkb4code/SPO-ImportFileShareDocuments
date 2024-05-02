@@ -50,7 +50,6 @@ function New-DocumentMetaData {
         if([string]::IsNullOrEmpty($columnData) -and ($FieldMap.Required -eq 1)){
             $metadataValidation.Add("Required column missing value. Field Name: $($FieldMap.SourceField)") | Out-Null
         }elseif(![string]::IsNullOrEmpty($columnData)){
-            # Date validation in mm/dd/yyyy format
             switch -CaseSensitive ($FieldMap.TargetType) {
                 "Text" {
                     if($columnData.Length -gt 255) {
@@ -63,20 +62,52 @@ function New-DocumentMetaData {
                     Break
                 }
                 "DateTime" {
-                    if($columnData -match '\d{1,2}\/\d{1,2}\/(19\d{2}|20[0-2][0-4])'){
-                        $metadata.Add($FieldMap.TargetField, $columnData)
-                    }else {
-                        $metadataValidation.Add("Invalid Date") | Out-Null
+                    try {
+                        $sourceDate = Get-Date -Date $columnData
+                        $metadata.Add($FieldMap.TargetField, $sourceDate.ToString("MM/dd/yyyy HH:mm:ss"))
+                    }
+                    catch {
+                        $metadataValidation.Add("Invalid data. Field Name: $($FieldMap.SourceField)") | Out-Null
                     }
                     Break
                 }
-                "Choice" {$metadata.Add($FieldMap.TargetField, $columnData)}
-                "Lookup" {}
-                "User" {}
+                "Choice" {
+                    $metadata.Add($FieldMap.TargetField, $columnData)
+                    Break
+                }
+                "Lookup" {
+                    $camlQuery = "<View>
+                        <Query>
+                            <Where>
+                                <Eq>
+                                    <FieldRef Name='$($FieldMap.LookupColumn)'/>
+                                    <Value Type='Text'>$($columnData)</Value>
+                                </Eq>
+                            </Where>
+                            <ViewFields>
+                                <FieldRef  Name='ID' />
+                            </ViewFields>
+                        </Query>
+                    </View>"
+
+                    $item = Get-PnPListItem -List "Insurance Details" -Query $camlQuery
+
+                    If($item.Id){
+                        $metadata.Add($FieldMap.TargetField, $item.Id)
+                    }else {
+                        $metadataValidation.Add("Lookup value '$($columnData)' not found in '$($FieldMap.LookupList)' list.")
+                    }
+                }
+                "User" {
+                    $metadata.Add($FieldMap.TargetField, $columnData)
+                    Break
+                }
                 Default {
                     $metadata.Add($FieldMap.TargetField, $columnData)
                 }
             }
+        }else {
+            $metadataValidation.Add("Skipping blank metadata value upload: Field Name: $($FieldMap.SourceField)") | Out-Null
         }
     }
 
@@ -94,6 +125,7 @@ foreach($task in $migrationConfiguration.Tasks){
 
     # Migration Log Output File
     $outputFile = ".\Logs\$($task.Name)_$((Get-Date).ToString("yyyyMMddHHmmss")).csv"
+    $stackTraceFile = ".\Logs\StackTrace_$($task.Name)_$((Get-Date).ToString("yyyyMMddHHmmss")).txt"
 
     # Verify and create Log folder if not exists already
     if(!(Test-Path -Path ".\Logs")){
@@ -102,6 +134,7 @@ foreach($task in $migrationConfiguration.Tasks){
 
     # Create CSV Log file with Header
     "Operation,Status,Source,Destination,Details" | Out-File -FilePath $outputFile
+    "" | Out-File -FilePath $stackTraceFile
 
     # Uncomment following line if Add-PnPFile result in Access Denied error, provide the Tenant Admin Site URL in following too
     # Update-RunScriptPermission -TenantAdminSite "" -DestinationSite $task.TargetUrl -UserName $task.TargetCredentials.UserName -Password $task.TargetCredentials.Password
@@ -119,30 +152,28 @@ foreach($task in $migrationConfiguration.Tasks){
 
     # For each file listed in Manifest CSV file, validate the file upload context and finally push to SPO 
     foreach($csvRow in $manifestFile){
-        $uploadPath = "$libraryPath"
-        $fileName = $csvRow."$($task.FileNameInManifestCSV)"
-        $networkFileLocation = -join($task.SourceUnc, "\", $csvRow."$($task.FileNameInManifestCSV)")
-        $metadata = $null
-        $metadataValidation = $null
-        
-        # Check if folder hierarchy is enabled and set up folder hierarchy using configuration from Manifest file
-        if($task.ParentFolderHierarchyUpload) {
-            $folderPath = @($task.ParentFolder | ForEach-Object {$csvRow.$_}) -join "/"
-            $uploadPath = "$($libraryPath)/$($folderPath)"
-            if($uploadPath.LastIndexOf("/") -eq $uploadPath.Length - 1){
-                $uploadPath = $uploadPath.Substring(0, $uploadPath.Length - 1)
-            }
-        }
-
         # Setup metadata of uploaded file
         $newDocMetadata = New-DocumentMetaData -FieldMaps $task.FieldMap -ValueMaps $csvRow
         
-        # Read file from network drive as a stream
-        $fileContent = Get-Content -Path $networkFileLocation -AsByteStream -Raw
-        $filestream = [System.IO.MemoryStream]::new($fileContent)
-
-        # Upload File to SPO
         try {
+            $uploadPath = "$libraryPath"
+            $fileName = $csvRow."$($task.FileNameInManifestCSV)"
+            $networkFileLocation = -join($task.SourceUnc, "\", $csvRow."$($task.FileNameInManifestCSV)")
+            
+            # Check if folder hierarchy is enabled and set up folder hierarchy using configuration from Manifest file
+            if($task.ParentFolderHierarchyUpload) {
+                $folderPath = @($task.ParentFolder | ForEach-Object {$csvRow.$_}) -join "/"
+                $uploadPath = "$($libraryPath)/$($folderPath)"
+                if($uploadPath.LastIndexOf("/") -eq $uploadPath.Length - 1){
+                    $uploadPath = $uploadPath.Substring(0, $uploadPath.Length - 1)
+                }
+            }
+            
+            # Read file from network drive as a stream
+            $fileContent = Get-Content -Path $networkFileLocation -AsByteStream -Raw
+            $filestream = [System.IO.MemoryStream]::new($fileContent)
+
+            # Upload File to SPO
             if($newDocMetadata.MetaData.Count -gt 0){
                 Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName with metadata" -ForegroundColor Green
                 $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -Values $newDocMetadata.MetaData -PublishComment $publishComment
@@ -156,9 +187,14 @@ foreach($task in $migrationConfiguration.Tasks){
         catch {
             <#Do this if a terminating exception happens#>
             "Upload,Failed,$networkFileLocation,#NA,$($_.Exception.Message)" | Out-File -FilePath $outputFile -Append
+            $fileName | Out-File -FilePath $stackTraceFile -Append
+            $_.Exception.StackTrace | Out-File $stackTraceFile -Append
+            "`r`n" | Out-File $stackTraceFile -Append
+            "`r`n" | Out-File $stackTraceFile -Append
+            
         } finally {
             <#Do this after the try block regardless of whether an exception occurred or not#>
-            foreach($validation in $metadataValidation){
+            foreach($validation in $newDocMetadata.Validation){
                 "Validation,Failed,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl),$validation" | Out-File -FilePath $outputFile -Append
             }
         }
@@ -166,7 +202,6 @@ foreach($task in $migrationConfiguration.Tasks){
         $fileCount++
     }
 
-    #Disconnect-PnPOnline
-
+    Disconnect-PnPOnline
 }
 
