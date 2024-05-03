@@ -186,8 +186,10 @@ foreach($task in $migrationConfiguration.Tasks){
         }
         catch {
             <#Do this if a terminating exception happens#>
+            Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName with metadata" -ForegroundColor Red
             "Upload,Failed,$networkFileLocation,#NA,$($_.Exception.Message)" | Out-File -FilePath $outputFile -Append
             $fileName | Out-File -FilePath $stackTraceFile -Append
+            $_ | Out-File -FilePath $stackTraceFile -Append
             $_.Exception.StackTrace | Out-File $stackTraceFile -Append
             "`r`n" | Out-File $stackTraceFile -Append
             "`r`n" | Out-File $stackTraceFile -Append
@@ -195,7 +197,11 @@ foreach($task in $migrationConfiguration.Tasks){
         } finally {
             <#Do this after the try block regardless of whether an exception occurred or not#>
             foreach($validation in $newDocMetadata.Validation){
-                "Validation,Failed,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl),$validation" | Out-File -FilePath $outputFile -Append
+                if($validation.StartsWith("Skipping")){
+                    "Validation,Skip,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl),$validation" | Out-File -FilePath $outputFile -Append
+                } else {
+                    "Validation,Failed,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl),$validation" | Out-File -FilePath $outputFile -Append
+                }
             }
         }
         
@@ -204,4 +210,3 @@ foreach($task in $migrationConfiguration.Tasks){
 
     Disconnect-PnPOnline
 }
-
