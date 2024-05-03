@@ -84,10 +84,10 @@ function New-DocumentMetaData {
                                     <Value Type='Text'>$($columnData)</Value>
                                 </Eq>
                             </Where>
-                            <ViewFields>
-                                <FieldRef  Name='ID' />
-                            </ViewFields>
                         </Query>
+                        <ViewFields>
+                            <FieldRef  Name='Id' />
+                        </ViewFields>
                     </View>"
 
                     $item = Get-PnPListItem -List "Insurance Details" -Query $camlQuery
