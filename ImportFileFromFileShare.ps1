@@ -3,6 +3,7 @@ Import-Module PnP.PowerShell
 
 # Load Configuration file.
 $migrationConfiguration = Get-Content .\config.json -Raw | ConvertFrom-Json
+$metadataOnlyUpdate = $true
 
 # Check for site Add and Customize Pages permission enabled for site. 
 # This feature uses SPO Tenant Admin permission. 
@@ -36,7 +37,8 @@ function Update-RunScriptPermission {
 function New-DocumentMetaData {
     param (
         $FieldMaps,
-        $ValueMaps
+        $ValueMaps,
+        $UserMap
     )
     
     $metadata = @{}
@@ -99,6 +101,10 @@ function New-DocumentMetaData {
                     }
                 }
                 "User" {
+                    if($columnData -match "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"){
+                        
+                    }
+
                     $metadata.Add($FieldMap.TargetField, $columnData)
                     Break
                 }
@@ -120,8 +126,12 @@ foreach($task in $migrationConfiguration.Tasks){
     # Migration configuration
     $libraryPath = $task.TargetLibrary
     $manifestFile = Import-Csv -Path $task.ManifestFile
+    $userMappingFile = Import-Csv -Path $task.UserMapping
     $fileCount = 1
     $publishComment = "Automated upload using PnP PowerShell migration script."
+
+    # Extract site relative URL
+    $siteRelativeUrl = (Get-PnPWeb).ServerRelativeUrl
 
     # Migration Log Output File
     $outputFile = ".\Logs\$($task.Name)_$((Get-Date).ToString("yyyyMMddHHmmss")).csv"
@@ -153,7 +163,7 @@ foreach($task in $migrationConfiguration.Tasks){
     # For each file listed in Manifest CSV file, validate the file upload context and finally push to SPO 
     foreach($csvRow in $manifestFile){
         # Setup metadata of uploaded file
-        $newDocMetadata = New-DocumentMetaData -FieldMaps $task.FieldMap -ValueMaps $csvRow
+        $newDocMetadata = New-DocumentMetaData -FieldMaps $task.FieldMap -ValueMaps $csvRow -UserMap $userMappingFile
         
         try {
             $uploadPath = "$libraryPath"
@@ -168,21 +178,34 @@ foreach($task in $migrationConfiguration.Tasks){
                     $uploadPath = $uploadPath.Substring(0, $uploadPath.Length - 1)
                 }
             }
-            
-            # Read file from network drive as a stream
-            $fileContent = Get-Content -Path $networkFileLocation -AsByteStream -Raw
-            $filestream = [System.IO.MemoryStream]::new($fileContent)
 
-            # Upload File to SPO
-            if($newDocMetadata.MetaData.Count -gt 0){
-                Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName with metadata" -ForegroundColor Green
-                $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -Values $newDocMetadata.MetaData -PublishComment $publishComment
-            }else {
-                Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName without metadata" -ForegroundColor Yellow
-                $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -PublishComment $publishComment
+            if(!$metadataOnlyUpdate){
+                # Read file from network drive as a stream
+                $fileContent = Get-Content -Path $networkFileLocation -AsByteStream -Raw
+                $filestream = [System.IO.MemoryStream]::new($fileContent)
+
+                # Upload File to SPO
+                if($newDocMetadata.MetaData.Count -gt 0){
+                    Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName with metadata" -ForegroundColor Green
+                    $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -Values $newDocMetadata.MetaData -PublishComment $publishComment
+                }else {
+                    Write-Host "Uploading $fileCount of $($manifestFile.Count) to: $uploadPath/$fileName without metadata" -ForegroundColor Yellow
+                    $newFileInSPO = Add-PnPFile -Folder $uploadPath -FileName $fileName -Stream $filestream -PublishComment $publishComment
+                }
+                
+                "Upload,Success,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl)," | Out-File -FilePath $outputFile -Append
+            }else{
+                # Get the file item ID and update metadata
+                $fileListItem = Get-PnPFile -Url "$uploadPath/$fileName" -AsListItem
+                if($fileListItem){
+                    Set-PnPListItem -List $libraryPath -Identity $fileListItem.Id -Values $newDocMetadata.MetaData
+                    "Metadata Updated,Success,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl)," | Out-File -FilePath $outputFile -Append
+                }else {
+                    "Metadata Updated,Failed,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl)," | Out-File -FilePath $outputFile -Append
+                }
+                
             }
             
-            "Upload,Success,$networkFileLocation,$($newFileInSPO.ServerRelativeUrl)," | Out-File -FilePath $outputFile -Append
         }
         catch {
             <#Do this if a terminating exception happens#>
@@ -208,5 +231,5 @@ foreach($task in $migrationConfiguration.Tasks){
         $fileCount++
     }
 
-    Disconnect-PnPOnline
+    #Disconnect-PnPOnline
 }

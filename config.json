@@ -13,6 +13,7 @@
             "ParentFolderHierarchyUpload": true,
             "ParentFolder": ["insuredname", "year", "originalfolder"],
             "FileNameInManifestCSV": "file_name",
+            "UserMapping": ".\\usermapping.csv",
             "FieldMap": [
                 {
                     "SourceField": "insuredname",
